@@ -4,5 +4,7 @@ project(fixpq)
 add_definitions(-Wall)
 include_directories(include)
 
-add_executable(fixpq src/main.c)
+set(SOURCE src/simple.c src/parser.c src/lexer.c src/main.c)
+
+add_executable(fixpq ${SOURCE})
 

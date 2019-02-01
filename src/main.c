@@ -4,6 +4,9 @@
 #include <stdlib.h>
 
 #include <types.h>
+#include <simple.h>
+#include <lexer.h>
+#include <parser.h>
 
 static const char *HELP_MSG = ""
 "fixpq - remove invalid for PostgreSQL 9.6 parts in sql dumb\n"
@@ -41,48 +44,6 @@ void open_in(State *state) {
     }
 }
 
-void open_out(State *state) {
-    if (!state->output) {
-        return;
-    }
-    state->out = fopen(state->output, "w+");
-    if (state->out == NULL) {
-        printf("Cannot open file to write: %s\n", state->output);
-        if (state->in) fclose(state->in);
-        exit(1);
-    }
-}
-
-void fix_content(State *state) {
-    char *buffer = (char *) malloc(2048);
-    size_t len = 2048;
-    FILE *tmp = tmpfile();
-
-    while (!feof(state->in) && !ferror(state->in)) {
-        int read_size = getline(&buffer, &len, state->in);
-        // printf(" >> %s", buffer);
-        if (read_size == -1)
-            break;
-        if (strcmp(buffer, "    AS integer") == 0) {
-            printf("Found 'AS integer' in line '%s'", buffer);
-        } else {
-            fwrite(buffer, sizeof(*buffer), read_size, tmp);
-        }
-    }
-
-    rewind(tmp);
-    open_out(state);
-
-    while (!feof(tmp) && !ferror(tmp)) {
-        int read_size = getline(&buffer, &len, tmp);
-        if (read_size == -1)
-            break;
-        fwrite(buffer, sizeof(*buffer), read_size, state->out);
-    }
-
-    fclose(tmp);
-    free(buffer);
-}
 
 void parse_opts(int argc, char **argv, State *state) {
     for (int i = 0; i < argc; i++) {
@@ -145,6 +106,26 @@ int main(int argc, char **argv) {
     open_in(state);
     fix_content(state);
 
+    Lexer *tokenizer = Lexer_init(state->input);
+    Lexer_tokenize(tokenizer);
+
+    Parser *parser = Parser_init(tokenizer);
+    Parser_parse(parser);
+    if (parser->ast) {
+        size_t count = 0;
+        ParserToken *token = parser->ast;
+        while (token != NULL) {
+            count += 1;
+            if (token->right)
+                count += 1;
+            token = token->left;
+        }
+        printf("Tree size: %zu\n", count);
+    }
+
+    Parser_free(parser);
+    Lexer_free(tokenizer);
+
     printf("Input: %s\nOutput: %s\n", state->input, state->output);
 
     if (state->input) free(state->input);
@@ -154,4 +135,3 @@ int main(int argc, char **argv) {
     if (state->out) fclose(state->out);
     return 0;
 }
-
