@@ -5,6 +5,7 @@
 #include <memory.h>
 #include <wchar.h>
 #include <locale.h>
+#include <ctype.h>
 
 typedef struct {
     size_t line;
@@ -28,6 +29,10 @@ typedef struct {
 } State;
 
 typedef enum {
+    ParserError_AllocFailed,
+} ParserError;
+
+typedef enum {
     LexerType_Keyword,
     LexerType_Identifier,
     LexerType_Operator,
@@ -35,16 +40,19 @@ typedef enum {
 } LexerType;
 
 typedef enum {
+    ParserType_InlineComment,
+    ParserType_MultiLineComment,
     ParserType_Number,
     ParserType_Identifier,
     ParserType_Smaller,
+    ParserType_Dot,
     ParserType_SmallerOrEqual,
-    ParserType_Highter,
-    ParserType_HighterOrEqual,
+    ParserType_Larger,
+    ParserType_LargerOrEqual,
     ParserType_Equal,
     ParserType_Assign,
     ParserType_Add,
-    ParserType_Substitute,
+    ParserType_Subtraction,
     ParserType_Multiply,
     ParserType_Divide,
     ParserType_Modulo,
@@ -57,6 +65,9 @@ typedef enum {
     ParserType_Table,
     ParserType_Function,
     ParserType_Extension,
+    ParserType_Select,
+    ParserType_LeftParenthesis,
+    ParserType_RightParenthesis,
 } ParserType;
 
 typedef struct {
@@ -71,6 +82,7 @@ typedef struct ParserToken_t {
     wchar_t *str;
     ParserType type;
     FilePosition position;
+    LexerToken *lexerToken;
 } ParserToken;
 
 typedef struct {
@@ -86,4 +98,5 @@ typedef struct {
     ParserToken *ast;
     size_t tokenLen;
     size_t position;
+    ParserError error;
 } Parser;
