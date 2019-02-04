@@ -12,6 +12,8 @@ static int is_number(Lexer *tokenizer);
 
 static int is_operator(Lexer *tokenizer);
 
+static int is_separator(Lexer *tokenizer);
+
 static void consume(Lexer *lexer);
 
 static void store_character(Lexer *tokenizer, wchar_t c);
@@ -71,10 +73,12 @@ int Lexer_tokenize(Lexer *lexer) {
             break;
         switch (c) {
             case L' ': {
-                lexer->position.character += 1;
                 consume(lexer);
+                lexer->position.character += 1;
                 break;
             }
+            case L'.':
+            case L',':
             case L'=':
             case L'+':
             case L'-':
@@ -99,8 +103,6 @@ int Lexer_tokenize(Lexer *lexer) {
             case L'\n': {
                 if (lexer->buffer)
                     consume(lexer);
-//                store_character(lexer, c);
-//                consume(lexer);
                 lexer->position.character = 1;
                 lexer->position.line += 1;
                 break;
@@ -121,15 +123,18 @@ static void store_character(Lexer *tokenizer, wchar_t c) {
         tokenizer->buffer[0] = c;
         tokenizer->buffer[1] = 0;
     } else {
-        size_t len = wcslen(tokenizer->buffer) + 2;
-        tokenizer->buffer = (wchar_t *) realloc(tokenizer->buffer, sizeof(wchar_t) * len);
-        tokenizer->buffer[len - 2] = c;
-        tokenizer->buffer[len - 1] = 0;
+        size_t len = wcslen(tokenizer->buffer) + 1;
+        tokenizer->buffer = (wchar_t *) realloc(tokenizer->buffer, sizeof(wchar_t) * (len + 1));
+        tokenizer->buffer[len - 1] = c;
+        tokenizer->buffer[len] = 0;
     }
     tokenizer->position.character += 1;
 }
 
 static void consume(Lexer *lexer) {
+    if (lexer->buffer == NULL)
+        return;
+
     LexerToken *token = (LexerToken *) malloc(sizeof(LexerToken));
     memset(token, 0, sizeof(LexerToken));
 
@@ -139,9 +144,12 @@ static void consume(Lexer *lexer) {
         token->type = LexerType_Literal;
     } else if (is_operator(lexer)) {
         token->type = LexerType_Operator;
+    } else if (is_separator(lexer)) {
+        token->type = LexerType_Separator;
     } else {
         token->type = LexerType_Identifier;
     }
+
     size_t bufLen = lexer->buffer ? wcslen(lexer->buffer) : 0;
     token->str = lexer->buffer;
     token->position.character = lexer->position.character - bufLen;
@@ -206,10 +214,26 @@ static int is_operator(Lexer *tokenizer) {
         case L'%':
         case L'|':
         case L'&':
+            return 1;
+        default:
+            return 0;
+    }
+}
+
+static int is_separator(Lexer *tokenizer) {
+    wchar_t *b = tokenizer->buffer;
+    if (b == NULL) return 0;
+    size_t len = wcslen(b);
+    if (len > 1) return 0;
+    if (len < 1) return 0;
+    switch (*b) {
         case L';':
         case L'.':
+        case L',':
         case L'<':
         case L'>':
+        case L')':
+        case L'(':
             return 1;
         default:
             return 0;

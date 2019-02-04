@@ -9,16 +9,17 @@
 #include <parser.h>
 
 static const char *HELP_MSG = ""
-"fixpq - remove invalid for PostgreSQL 9.6 parts in sql dumb\n"
-"  -h | --help       show this message\n"
-"  -o | --out=file   write to target file\n"
-"  -f | --file=file  read from file\n";
+                              "fixpq - remove invalid for PostgreSQL 9.6 parts in sql dumb\n"
+                              "  -h | --help       show this message\n"
+                              "  -o | --out=file   write to target file\n"
+                              "  -f | --file=file  read from file\n";
 static const char *SHORT_HELP_FLAG = "-h";
 static const char *LONG_HELP_FLAG = "--help";
 static const char *SHORT_INPUT_FLAG = "-f";
 static const char *LONG_INPUT_FLAG = "--file";
 static const char *SHORT_OUTPUT_FLAG = "-o";
 static const char *LONG_OUTPUT_FLAG = "--out";
+static const char *LONG_DRY_FLAG = "--dry";
 
 void print_help(int status) {
     printf("%s\n", HELP_MSG);
@@ -50,39 +51,37 @@ void parse_opts(int argc, char **argv, State *state) {
         char *value = argv[i];
 
         switch (state->flag) {
-            case FLAG_Output:
-                {
-                    copy_to(&state->output, value);
-                    state->flag = FLAG_NoOp;
-                    break;
+            case FLAG_Output: {
+                copy_to(&state->output, value);
+                state->flag = FLAG_NoOp;
+                break;
+            }
+            case FLAG_Input: {
+                copy_to(&state->input, value);
+                state->flag = FLAG_NoOp;
+                break;
+            }
+            case FLAG_NoOp: {
+                if (strcmp(value, SHORT_INPUT_FLAG) == 0) {
+                    state->flag = FLAG_Input;
+                } else if (strcmp(value, SHORT_OUTPUT_FLAG) == 0) {
+                    state->flag = FLAG_Output;
+                } else if (strcmp(value, SHORT_HELP_FLAG) == 0) {
+                    print_help(0);
+                } else if (strcmp(value, LONG_HELP_FLAG) == 0) {
+                    print_help(0);
+                } else if (strstr(value, LONG_INPUT_FLAG) == value) {
+                    copy_to(&state->input, value + strlen(LONG_INPUT_FLAG) + 1);
+                } else if (strstr(value, LONG_OUTPUT_FLAG) == value) {
+                    copy_to(&state->output, value + strlen(LONG_OUTPUT_FLAG) + 1);
+                } else if (strcmp(value, LONG_DRY_FLAG) == 0) {
+                    state->dry = 1;
                 }
-            case FLAG_Input:
-                {
-                    copy_to(&state->input, value);
-                    state->flag = FLAG_NoOp;
-                    break;
-                }
-            case FLAG_NoOp:
-                {
-                    if (strcmp(value, SHORT_INPUT_FLAG) == 0) {
-                        state->flag = FLAG_Input;
-                    } else if (strcmp(value, SHORT_OUTPUT_FLAG) == 0) {
-                        state->flag = FLAG_Output;
-                    } else if (strcmp(value, SHORT_HELP_FLAG) == 0) {
-                        print_help(0);
-                    } else if (strcmp(value, LONG_HELP_FLAG) == 0) {
-                        print_help(0);
-                    } else if(strstr(value, LONG_INPUT_FLAG) == value) {
-                        copy_to(&state->input, value + strlen(LONG_INPUT_FLAG) + 1);
-                    } else if(strstr(value, LONG_OUTPUT_FLAG) == value) {
-                        copy_to(&state->output, value + strlen(LONG_OUTPUT_FLAG) + 1);
-                    }
-                    break;
-                }
-            case FLAG_Help:
-                {
-                    break;
-                }
+                break;
+            }
+            case FLAG_Help: {
+                break;
+            }
         }
     }
 }
@@ -123,6 +122,19 @@ int main(int argc, char **argv) {
         printf("Tree size: %zu\n", count);
     }
 
+    if (!Parser_is_ok(parser)) {
+        switch (parser->error) {
+            case ParserError_Valid:
+                break;
+            case ParserError_AllocFailed:
+                perror("Failed to allocate memory\n");
+                break;
+            case ParserError_InvalidTableParent:
+                perror("Invalid `TABLE` parent\n");
+                break;
+        }
+    }
+
     Parser_free(parser);
     Lexer_free(tokenizer);
 
@@ -133,5 +145,6 @@ int main(int argc, char **argv) {
 
     if (state->in) fclose(state->in);
     if (state->out) fclose(state->out);
+
     return 0;
 }

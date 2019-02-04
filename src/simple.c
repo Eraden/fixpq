@@ -30,13 +30,14 @@ void fix_content(State *state) {
     }
 
     rewind(tmp);
-    open_out(state);
+    if (state->dry == 0) open_out(state);
 
     while (!feof(tmp) && !ferror(tmp)) {
         size_t read_size = getline(&buffer, &len, tmp);
         if (read_size == -1)
             break;
-        fwrite(buffer, sizeof(*buffer), read_size, state->out);
+        if (state->dry == 0)
+            fwrite(buffer, sizeof(*buffer), read_size, state->out);
     }
 
     fclose(tmp);

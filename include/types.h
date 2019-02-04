@@ -7,45 +7,50 @@
 #include <locale.h>
 #include <ctype.h>
 
-typedef struct {
+typedef struct FilePosition_t {
     size_t line;
     size_t character;
     size_t position;
 } FilePosition;
 
-typedef enum {
+typedef enum Flag_e {
     FLAG_NoOp,
     FLAG_Input,
     FLAG_Output,
     FLAG_Help
 } Flag;
 
-typedef struct {
+typedef struct State_t {
     char *input;
     char *output;
     Flag flag;
     FILE *in;
     FILE *out;
+    short dry;
 } State;
 
-typedef enum {
+typedef enum ParserError_e {
+    ParserError_Valid,
     ParserError_AllocFailed,
+    ParserError_InvalidTableParent,
 } ParserError;
 
-typedef enum {
+typedef enum LexerType_e {
     LexerType_Keyword,
     LexerType_Identifier,
     LexerType_Operator,
+    LexerType_Separator,
     LexerType_Literal,
 } LexerType;
 
-typedef enum {
+typedef enum ParserType_e {
     ParserType_InlineComment,
     ParserType_MultiLineComment,
     ParserType_Number,
     ParserType_Identifier,
     ParserType_Smaller,
     ParserType_Dot,
+    ParserType_Comma,
     ParserType_SmallerOrEqual,
     ParserType_Larger,
     ParserType_LargerOrEqual,
@@ -56,6 +61,7 @@ typedef enum {
     ParserType_Multiply,
     ParserType_Divide,
     ParserType_Modulo,
+    ParserType_Star,
     ParserType_Semicolon,
     ParserType_BinaryOr,
     ParserType_BinaryAnd,
@@ -66,11 +72,12 @@ typedef enum {
     ParserType_Function,
     ParserType_Extension,
     ParserType_Select,
+    ParserType_From,
     ParserType_LeftParenthesis,
     ParserType_RightParenthesis,
 } ParserType;
 
-typedef struct {
+typedef struct LexerToken_t {
     LexerType type;
     wchar_t *str;
     FilePosition position;
@@ -85,7 +92,7 @@ typedef struct ParserToken_t {
     LexerToken *lexerToken;
 } ParserToken;
 
-typedef struct {
+typedef struct Lexer_t {
     FILE *in;
     FilePosition position;
     LexerToken **tokens;
@@ -93,7 +100,7 @@ typedef struct {
     wchar_t *buffer;
 } Lexer;
 
-typedef struct {
+typedef struct Parser_t {
     LexerToken **tokens;
     ParserToken *ast;
     size_t tokenLen;
